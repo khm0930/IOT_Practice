@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RC Car Control</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* 버튼 및 스트리밍 컨테이너 스타일링 */
+        #control-container {
+            text-align: center;
+            margin: 20px;
+        }
+
+        #stream-container {
+            text-align: center;
+        }
+
+        /* 버튼 스타일링 */
+        .control-button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        /* 영상 스트리밍 스타일링 */
+        #video-stream {
+            width: 640px;
+            height: 480px;
+            display: inline-block;
+        }
+        h1 {
+            text-align: center; /* 가운데 정렬 */
+        }
+    </style>
+</head>
+<body>
+    <h1>라즈베리파이로rc카 조종</h1>
+    <div id="control-container">
+        <p>조작키</p>
+        <button id="forward" class="control-button">전진</button>
+        <button id="backward" class="control-button">후진</button>
+        <button id="left" class="control-button">좌</button>
+        <button id="right" class="control-button">우</button>
+        <button id="stop" class="control-button">정지</button>
+        <button id="auto" class="control-button">자율주행</button>
+    </div>
+    
+    <div id="distance-display" style="text-align: center; font-size: 24px;"></div>
+
+    <div id="distance-waring" style="text-align: center; font-size: 24px;"></div>
+    
+    <audio id="waring-sound" src="https://t1.daumcdn.net/cfile/tistory/9920E63A5CF6BAB306"></audio>
+
+    <div style="text-align: center;">
+        <button id="play-sound" class="control-button">소리 재생</button>
+    </div>
+    
+
+
+
+    <div id="stream-container">
+        <p>카메라</p>
+        <img id="video-stream" src="" width="960" height="720">
+    </div>
+
+    <script>
+        var buttonPressed = false;
+
+        function sendAction(action) {
+            if (buttonPressed) {
+                $.get("/" + action);
+            }
+        }
+
+        function stopCar() {
+            buttonPressed = false;
+            $.get("/stop");
+        }
+
+        $(document).ready(function() {
+            $("#forward").mousedown(function() {
+                buttonPressed = true;
+                sendAction("forward");
+            }).mouseup(stopCar);
+
+            $("#backward").mousedown(function() {
+                buttonPressed = true;
+                sendAction("backward");
+            }).mouseup(stopCar);
+
+            $("#left").mousedown(function() {
+                buttonPressed = true;
+                sendAction("left");
+            }).mouseup(stopCar);
+
+            $("#right").mousedown(function() {
+                buttonPressed = true;
+                sendAction("right");
+            }).mouseup(stopCar);
+            
+             $("#auto").click(function() {
+                $.get("/auto");
+            });
+
+            $("#stop").click(function() {
+                $.get("/stop");  // 정지 버튼 클릭 시 /stop 엔드포인트로 요청 보내기
+                stopCar();  // 자동차 정지 함수 호출
+            });
+
+            $(document).keydown(function(e) {
+                switch(e.which) {
+                    case 38: // W key
+                        buttonPressed = true;
+                        sendAction("forward");
+                        break;
+                    case 40: // S key
+                        buttonPressed = true;
+                        sendAction("backward");
+                        break;
+                    case 37: // A key
+                        buttonPressed = true;
+                        sendAction("left");
+                        break;
+                    case 39: // D key
+                        buttonPressed = true;
+                        sendAction("right");
+                        break;
+                }
+            }).keyup(stopCar);
+        });
+
+        function loadVideoStream() {
+            var video = document.getElementById("video-stream");
+            video.src = "http://localhost:9090/?action=stream";
+        }
+            function loadVideoStream2() {
+            var video = document.getElementById("video-stream");
+            video.src = "http://220.69.203.14:9090/?action=stream";
+        }
+
+        var distanceWaringElement = document.getElementById("distance-waring");
+        var waringSoundElement = document.getElementById("waring-sound");
+
+       function updateDistance() {
+        $.get("/get_distance", function(data) {
+        var distance = parseInt(data);
+        $("#distance-display").text("차량거리: " + distance + " cm");
+
+        if (distance < 30) {
+            distanceWaringElement.innerHTML = "주의: 거리가 너무 가깝습니다!";
+            waringSoundElement.play(); // 소리 재생
+        } else {
+            distanceWaringElement.innerHTML = "";
+            waringSoundElement.pause(); // 소리 일시정지
+            waringSoundElement.currentTime = 0; // 소리 재생 위치 초기화
+        }
+    });
+}
+
+        function updateDistancePeriodically() {
+        setInterval(updateDistance, 1000); // 1초마다 거리 업데이트
+        }
+
+        $(document).ready(function() {
+            // 기존의 버튼 및 키 조작 이벤트 설정
+
+              // "소리 재생" 버튼을 클릭할 때 소리를 재생합니다.
+    $("#play-sound").click(function() {
+        waringSoundElement.play();
+    });
+
+    // "소리 일시정지" 버튼을 클릭할 때 소리를 일시정지합니다.
+    $("#pause-sound").click(function() {
+        waringSoundElement.pause();
+    });
+            
+            // 페이지 로드 시 비디오 스트리밍 가져오기
+            loadVideoStream();
+            loadVideoStream2();
+
+        
+    
+            updateDistancePeriodically();  // 초기 업데이트 시작
+        });
+    </script>
+</body>
+</html>
